@@ -14,6 +14,7 @@ export interface ItunesRawResult {
   previewUrl?: string;
   primaryGenreName?: string;
   releaseDate?: string;
+  trackTimeMillis?: number;
 }
 
 export interface ItunesSearchResponse {
@@ -31,6 +32,7 @@ export interface Song {
   artworkUrl?: string;
   previewUrl?: string;
   genre?: string;
+  durationMs?: number;
 }
 
 export interface Album {

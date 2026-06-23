@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-export default function ThemeToggle() {
+interface ThemeToggleProps {
+  inline?: boolean;
+}
+
+export default function ThemeToggle({ inline = false }: ThemeToggleProps) {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -22,7 +26,9 @@ export default function ThemeToggle() {
       type="button"
       onClick={toggleTheme}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className="fixed right-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+      className={`flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800 ${
+        inline ? "" : "fixed right-4 top-4 z-30"
+      }`}
     >
       {isDark ? (
         <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5" aria-hidden="true">

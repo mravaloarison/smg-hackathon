@@ -13,6 +13,17 @@ import ResultsList from "@/components/results/ResultsList";
 import SongDetailView from "@/components/song-detail/SongDetailView";
 import AlbumDetailView from "@/components/album-detail/AlbumDetailView";
 import ArtistDetailView from "@/components/artist-detail/ArtistDetailView";
+import LyricsSection from "@/components/lyrics/LyricsSection";
+import LyricsView from "@/components/lyrics/LyricsView";
+import SignInForm from "@/components/auth/SignInForm";
+import SignUpForm from "@/components/auth/SignUpForm";
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
+import ProfileView from "@/components/profile/ProfileView";
+import ProfileEditForm from "@/components/profile/ProfileEditForm";
+import UserCard from "@/components/people/UserCard";
+import PlaylistCard from "@/components/playlists/PlaylistCard";
+import PlaylistSongRow from "@/components/playlists/PlaylistSongRow";
+import CreatePlaylistForm from "@/components/playlists/CreatePlaylistForm";
 import Artwork from "@/components/ui/Artwork";
 import BackButton from "@/components/ui/BackButton";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -28,6 +39,14 @@ import {
   mockSong,
   mockSongNoArtwork,
 } from "@/lib/itunes/mockData";
+import { mockInstrumentalLyrics, mockLyrics } from "@/lib/lyrics/mockData";
+import {
+  mockEmptyPlaylist,
+  mockOtherUserProfile,
+  mockPlaylist,
+  mockPlaylistSong,
+  mockUserProfile,
+} from "@/lib/firestore/mockData";
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -107,7 +126,12 @@ export default function UiTestPage() {
       </Block>
 
       <Block title="SongDetailView">
-        <SongDetailView song={mockSong} onBack={() => {}} onArtistClick={() => {}} />
+        <SongDetailView
+          song={mockSong}
+          onBack={() => {}}
+          onArtistClick={() => {}}
+          onAddToPlaylist={() => {}}
+        />
       </Block>
 
       <Block title="AlbumDetailView">
@@ -126,6 +150,22 @@ export default function UiTestPage() {
           onAlbumClick={() => {}}
           onArtistClick={() => {}}
         />
+      </Block>
+
+      <Block title="LyricsView">
+        <div className="flex flex-col gap-4">
+          <LyricsView plainLyrics={mockLyrics.plainLyrics} instrumental={false} />
+          <LyricsView plainLyrics={null} instrumental />
+        </div>
+      </Block>
+
+      <Block title="LyricsSection (loading / error / found / instrumental)">
+        <div className="flex flex-col gap-6">
+          <LyricsSection isLoading lyrics={null} error={false} />
+          <LyricsSection isLoading={false} error lyrics={null} />
+          <LyricsSection isLoading={false} error={false} lyrics={mockLyrics} />
+          <LyricsSection isLoading={false} error={false} lyrics={mockInstrumentalLyrics} />
+        </div>
       </Block>
 
       <Block title="Artwork (sizes + fallback)">
@@ -155,6 +195,51 @@ export default function UiTestPage() {
 
       <Block title="ErrorMessage">
         <ErrorMessage message="Could not fetch search results." />
+      </Block>
+
+      <Block title="SignInForm">
+        <SignInForm onSubmit={() => {}} />
+      </Block>
+
+      <Block title="SignUpForm">
+        <SignUpForm onSubmit={() => {}} />
+      </Block>
+
+      <Block title="GoogleSignInButton">
+        <GoogleSignInButton onClick={() => {}} />
+      </Block>
+
+      <Block title="ProfileView (own vs. other)">
+        <div className="flex flex-col gap-6 divide-y divide-neutral-200 dark:divide-neutral-800">
+          <ProfileView profile={mockUserProfile} isOwnProfile onEdit={() => {}} />
+          <ProfileView profile={mockOtherUserProfile} isOwnProfile={false} />
+        </div>
+      </Block>
+
+      <Block title="ProfileEditForm">
+        <ProfileEditForm profile={mockUserProfile} onSave={() => {}} onCancel={() => {}} />
+      </Block>
+
+      <Block title="UserCard">
+        <div className="flex flex-col gap-1">
+          <UserCard user={mockUserProfile} />
+          <UserCard user={mockOtherUserProfile} />
+        </div>
+      </Block>
+
+      <Block title="PlaylistCard">
+        <div className="flex flex-col gap-1">
+          <PlaylistCard playlist={mockPlaylist} />
+          <PlaylistCard playlist={mockEmptyPlaylist} />
+        </div>
+      </Block>
+
+      <Block title="PlaylistSongRow">
+        <PlaylistSongRow song={mockPlaylistSong} onRemove={() => {}} />
+      </Block>
+
+      <Block title="CreatePlaylistForm">
+        <CreatePlaylistForm onCreate={() => {}} />
       </Block>
     </main>
   );

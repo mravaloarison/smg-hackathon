@@ -24,6 +24,7 @@ export function normalizeResults(raw: ItunesRawResult[]): SearchResults {
         artworkUrl: upscaleArtwork(item.artworkUrl100),
         previewUrl: item.previewUrl,
         genre: item.primaryGenreName,
+        durationMs: item.trackTimeMillis,
       });
     } else if (item.wrapperType === "collection" && item.collectionId) {
       albums.push({

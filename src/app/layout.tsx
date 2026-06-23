@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ThemeInitScript from "@/components/theme/ThemeInitScript";
-import ThemeToggle from "@/components/theme/ThemeToggle";
+import NavBar from "@/components/layout/NavBar";
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,8 +35,10 @@ export default function RootLayout({
         <ThemeInitScript />
       </head>
       <body className="min-h-full flex flex-col">
-        <ThemeToggle />
-        {children}
+        <AuthProvider>
+          <NavBar />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

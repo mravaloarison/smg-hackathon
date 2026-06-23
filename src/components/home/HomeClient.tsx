@@ -8,6 +8,8 @@ import ResultsList from "@/components/results/ResultsList";
 import SongDetailView from "@/components/song-detail/SongDetailView";
 import AlbumDetailView from "@/components/album-detail/AlbumDetailView";
 import ArtistDetailView from "@/components/artist-detail/ArtistDetailView";
+import LyricsSection from "@/components/lyrics/LyricsSection";
+import AddToPlaylistModal from "@/components/playlists/AddToPlaylistModal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import EmptyState from "@/components/ui/EmptyState";
@@ -26,6 +28,8 @@ import {
   SearchType,
   Song,
 } from "@/lib/itunes/types";
+import { fetchLyrics } from "@/lib/lyrics/client";
+import { LyricsResult } from "@/lib/lyrics/types";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 const EMPTY_RESULTS: SearchResults = { songs: [], albums: [], artists: [] };
@@ -66,6 +70,12 @@ export default function HomeClient() {
   const [artistDetail, setArtistDetail] = useState<ArtistDetail | null>(null);
   const [isLoadingArtist, setIsLoadingArtist] = useState(false);
   const [artistError, setArtistError] = useState(false);
+
+  const [lyrics, setLyrics] = useState<LyricsResult | null>(null);
+  const [isLoadingLyrics, setIsLoadingLyrics] = useState(false);
+  const [lyricsError, setLyricsError] = useState(false);
+
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
 
   const songFromResults = songId
     ? results.songs.find((s) => String(s.id) === songId) ?? null
@@ -206,6 +216,38 @@ export default function HomeClient() {
     };
   }, [artistId, artistMatchesId]);
 
+  useEffect(() => {
+    if (!selectedSong) return;
+
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- starting an async fetch, not deriving state
+    setIsLoadingLyrics(true);
+    setLyricsError(false);
+    setLyrics(null);
+
+    fetchLyrics({
+      artistName: selectedSong.artistName,
+      trackName: selectedSong.title,
+      albumName: selectedSong.albumName,
+      durationSeconds: selectedSong.durationMs
+        ? Math.round(selectedSong.durationMs / 1000)
+        : undefined,
+    })
+      .then((data) => {
+        if (!cancelled) setLyrics(data);
+      })
+      .catch(() => {
+        if (!cancelled) setLyricsError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingLyrics(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSong]);
+
   function handleSongClick(song: Song) {
     setFetchedSong(song);
     updateUrl({ songId: String(song.id) });
@@ -245,11 +287,21 @@ export default function HomeClient() {
         {isLoadingSong && <LoadingSpinner />}
         {!isLoadingSong && songError && <ErrorMessage message="Could not load this song." />}
         {!isLoadingSong && !songError && selectedSong && (
-          <SongDetailView
-            song={selectedSong}
-            onBack={handleBackFromSong}
-            onArtistClick={navigateToArtist}
-          />
+          <>
+            <SongDetailView
+              song={selectedSong}
+              onBack={handleBackFromSong}
+              onArtistClick={navigateToArtist}
+              onAddToPlaylist={() => setIsAddToPlaylistOpen(true)}
+            />
+            <LyricsSection isLoading={isLoadingLyrics} error={lyricsError} lyrics={lyrics} />
+            {isAddToPlaylistOpen && (
+              <AddToPlaylistModal
+                song={selectedSong}
+                onClose={() => setIsAddToPlaylistOpen(false)}
+              />
+            )}
+          </>
         )}
       </main>
     );

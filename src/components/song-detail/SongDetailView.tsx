@@ -6,9 +6,15 @@ interface SongDetailViewProps {
   song: Song;
   onBack: () => void;
   onArtistClick?: (artistId: number) => void;
+  onAddToPlaylist?: () => void;
 }
 
-export default function SongDetailView({ song, onBack, onArtistClick }: SongDetailViewProps) {
+export default function SongDetailView({
+  song,
+  onBack,
+  onArtistClick,
+  onAddToPlaylist,
+}: SongDetailViewProps) {
   return (
     <div>
       <BackButton onClick={onBack} />
@@ -35,6 +41,18 @@ export default function SongDetailView({ song, onBack, onArtistClick }: SongDeta
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
               From the album <span className="font-medium">{song.albumName}</span>
             </p>
+          )}
+          {onAddToPlaylist && (
+            <button
+              type="button"
+              onClick={onAddToPlaylist}
+              className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-neutral-900 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+              </svg>
+              Add to Playlist
+            </button>
           )}
         </div>
       </div>
