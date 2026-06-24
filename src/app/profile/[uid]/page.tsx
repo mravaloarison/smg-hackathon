@@ -64,7 +64,7 @@ export default function OtherProfilePage({
 
   return (
     <AuthGate>
-      <main className="mx-auto flex max-w-3xl w-full flex-col px-4 py-10">
+      <main className="flex w-full flex-col px-6 py-10">
         <OtherProfileContent uid={uid} />
       </main>
     </AuthGate>

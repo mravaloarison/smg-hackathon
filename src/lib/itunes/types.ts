@@ -70,6 +70,12 @@ export interface ArtistDetail {
   albums: Album[];
 }
 
+export interface HomeDiscovery {
+  trendingSongs: Song[];
+  trendingAlbums: Album[];
+  popularArtists: Artist[];
+}
+
 export function upscaleArtwork(url?: string, size = 300): string | undefined {
   if (!url) return undefined;
   return url.replace(/\/\d+x\d+bb\.(jpg|png)$/, `/${size}x${size}bb.$1`);

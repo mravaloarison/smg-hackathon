@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ThemeInitScript from "@/components/theme/ThemeInitScript";
-import NavBar from "@/components/layout/NavBar";
+import Sidebar from "@/components/layout/Sidebar";
+import MobileNav from "@/components/layout/MobileNav";
 import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
@@ -36,8 +37,11 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          <NavBar />
-          {children}
+          <MobileNav />
+          <div className="flex flex-1 pt-14 md:pt-0">
+            <Sidebar />
+            <div className="min-w-0 flex-1">{children}</div>
+          </div>
         </AuthProvider>
       </body>
     </html>

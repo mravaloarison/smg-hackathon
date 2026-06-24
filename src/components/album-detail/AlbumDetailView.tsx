@@ -8,6 +8,7 @@ interface AlbumDetailViewProps {
   onBack: () => void;
   onSongClick: (song: Song) => void;
   onArtistClick?: (artistId: number) => void;
+  onAddToPlaylist?: (song: Song) => void;
 }
 
 export default function AlbumDetailView({
@@ -15,6 +16,7 @@ export default function AlbumDetailView({
   onBack,
   onSongClick,
   onArtistClick,
+  onAddToPlaylist,
 }: AlbumDetailViewProps) {
   const { album, tracks } = albumDetail;
 
@@ -54,7 +56,7 @@ export default function AlbumDetailView({
             Tracks
           </h2>
           {tracks.map((track) => (
-            <SongCard key={track.id} song={track} onClick={onSongClick} />
+            <SongCard key={track.id} song={track} onClick={onSongClick} onAddToPlaylist={onAddToPlaylist} />
           ))}
         </div>
       )}

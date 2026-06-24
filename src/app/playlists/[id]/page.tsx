@@ -3,18 +3,31 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthGate from "@/components/auth/AuthGate";
+import PlaylistHeader from "@/components/playlists/PlaylistHeader";
 import PlaylistSongRow from "@/components/playlists/PlaylistSongRow";
+import InviteCollaboratorModal from "@/components/playlists/InviteCollaboratorModal";
 import BackButton from "@/components/ui/BackButton";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import EmptyState from "@/components/ui/EmptyState";
-import { removeSongFromPlaylist, subscribeToPlaylist } from "@/lib/firestore/playlists";
-import { Playlist, PlaylistSong } from "@/lib/firestore/types";
+import {
+  deletePlaylist,
+  removeCollaborator,
+  removeSongFromPlaylist,
+  renamePlaylist,
+  subscribeToPlaylist,
+} from "@/lib/firestore/playlists";
+import { getUserProfiles } from "@/lib/firestore/users";
+import { Playlist, PlaylistSong, UserProfile } from "@/lib/firestore/types";
 
 function PlaylistDetailContent({ playlistId }: { playlistId: string }) {
   const router = useRouter();
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
+  const [collaborators, setCollaborators] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- starting a live subscription, not deriving state
@@ -25,8 +38,40 @@ function PlaylistDetailContent({ playlistId }: { playlistId: string }) {
     });
   }, [playlistId]);
 
+  useEffect(() => {
+    const ids = playlist?.collaboratorIds ?? [];
+    if (ids.length === 0) {
+      setCollaborators([]);
+      return;
+    }
+    getUserProfiles(ids).then(setCollaborators).catch(() => {});
+  }, [playlist?.collaboratorIds]);
+
   async function handleRemove(song: PlaylistSong) {
     await removeSongFromPlaylist(playlistId, song);
+  }
+
+  async function handleRename(newName: string) {
+    setIsRenaming(true);
+    try {
+      await renamePlaylist(playlistId, newName);
+    } finally {
+      setIsRenaming(false);
+    }
+  }
+
+  async function handleDelete() {
+    setIsDeleting(true);
+    try {
+      await deletePlaylist(playlistId);
+      router.push("/playlists");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  async function handleRemoveCollaborator(uid: string) {
+    await removeCollaborator(playlistId, uid);
   }
 
   return (
@@ -38,9 +83,19 @@ function PlaylistDetailContent({ playlistId }: { playlistId: string }) {
       )}
       {!isLoading && playlist && (
         <>
-          <h1 className="mb-4 text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-            {playlist.name}
-          </h1>
+          <PlaylistHeader
+            name={playlist.name}
+            createdAt={playlist.createdAt}
+            ownerUsername={playlist.ownerUsername}
+            collaborators={collaborators}
+            onRename={handleRename}
+            onDelete={handleDelete}
+            onInvite={() => setIsInviting(true)}
+            onRemoveCollaborator={handleRemoveCollaborator}
+            isRenaming={isRenaming}
+            isDeleting={isDeleting}
+          />
+          <hr className="border-neutral-200 dark:border-neutral-800" />
           {playlist.songs.length === 0 ? (
             <EmptyState
               title="No songs yet"
@@ -52,6 +107,12 @@ function PlaylistDetailContent({ playlistId }: { playlistId: string }) {
                 <PlaylistSongRow key={song.id} song={song} onRemove={handleRemove} />
               ))}
             </div>
+          )}
+          {isInviting && (
+            <InviteCollaboratorModal
+              playlist={playlist}
+              onClose={() => setIsInviting(false)}
+            />
           )}
         </>
       )}
@@ -68,7 +129,7 @@ export default function PlaylistDetailPage({
 
   return (
     <AuthGate>
-      <main className="mx-auto flex max-w-3xl w-full flex-col px-4 py-10">
+      <main className="flex w-full flex-col px-6 py-10">
         <PlaylistDetailContent playlistId={id} />
       </main>
     </AuthGate>

@@ -6,13 +6,18 @@ import { Artist } from "@/lib/itunes/types";
 interface ArtistsSectionProps {
   artists: Artist[];
   onArtistClick?: (artist: Artist) => void;
+  title?: string;
 }
 
-export default function ArtistsSection({ artists, onArtistClick }: ArtistsSectionProps) {
+export default function ArtistsSection({
+  artists,
+  onArtistClick,
+  title = "Artists",
+}: ArtistsSectionProps) {
   if (artists.length === 0) return null;
 
   return (
-    <ResultsSection title="Artists">
+    <ResultsSection title={title}>
       <HorizontalScrollFade className="flex gap-4 pb-2">
         {artists.map((artist) => (
           <ArtistCard key={artist.id} artist={artist} onClick={onArtistClick} />

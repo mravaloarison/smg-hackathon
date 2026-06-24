@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import AuthPrompt from "@/components/auth/AuthPrompt";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useAuth } from "@/contexts/AuthContext";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const defaultMode = searchParams.get("mode") === "signup" ? "signup" : "signin";
 
   useEffect(() => {
     if (!isLoading && user) {
@@ -26,7 +28,15 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto flex max-w-3xl w-full flex-col px-4 py-10">
-      <AuthPrompt onSuccess={() => router.replace("/")} />
+      <AuthPrompt defaultMode={defaultMode} onSuccess={() => router.replace("/")} />
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageContent />
+    </Suspense>
   );
 }

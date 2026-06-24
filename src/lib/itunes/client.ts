@@ -1,4 +1,4 @@
-import { AlbumDetail, ArtistDetail, SearchResults, SearchType, Song } from "./types";
+import { AlbumDetail, ArtistDetail, HomeDiscovery, SearchResults, SearchType, Song } from "./types";
 
 async function getJson<T>(path: string, params: Record<string, string>): Promise<T> {
   const url = new URL(path, window.location.origin);
@@ -26,4 +26,8 @@ export function fetchAlbumById(id: string): Promise<AlbumDetail> {
 
 export function fetchArtistById(id: string): Promise<ArtistDetail> {
   return getJson("/api/artist", { id });
+}
+
+export function fetchHomeDiscovery(): Promise<HomeDiscovery> {
+  return getJson("/api/home", {});
 }

@@ -7,13 +7,14 @@ import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import { signInWithEmail, signInWithGoogle, signUpWithEmail } from "@/lib/firebase/auth";
 
+type Mode = "signin" | "signup";
+
 interface AuthPromptProps {
   title?: string;
   description?: string;
+  defaultMode?: Mode;
   onSuccess?: () => void;
 }
-
-type Mode = "signin" | "signup";
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === "object" && "code" in error) {
@@ -32,9 +33,10 @@ function getErrorMessage(error: unknown): string {
 export default function AuthPrompt({
   title = "Sign in to continue",
   description = "Sign in or create an account to search and save music.",
+  defaultMode = "signin",
   onSuccess,
 }: AuthPromptProps) {
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(defaultMode);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,17 +80,17 @@ export default function AuthPrompt({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col gap-4 rounded-xl border border-neutral-200 p-6 dark:border-neutral-800">
-      <div className="flex flex-col gap-1 text-center">
-        <h1 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">{title}</h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">{description}</p>
+    <div className="mx-auto flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-neutral-200 bg-white p-7 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+      <div className="flex flex-col gap-1.5 text-center">
+        <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">{title}</h1>
+        <p className="text-base text-neutral-500 dark:text-neutral-400">{description}</p>
       </div>
 
       <div className="flex rounded-full bg-neutral-100 p-1 dark:bg-neutral-800">
         <button
           type="button"
           onClick={() => setMode("signin")}
-          className={`flex-1 rounded-full py-1.5 text-sm font-medium transition ${
+          className={`flex-1 rounded-full py-2 text-base font-medium transition ${
             mode === "signin"
               ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-950 dark:text-neutral-100"
               : "text-neutral-500 dark:text-neutral-400"
@@ -99,7 +101,7 @@ export default function AuthPrompt({
         <button
           type="button"
           onClick={() => setMode("signup")}
-          className={`flex-1 rounded-full py-1.5 text-sm font-medium transition ${
+          className={`flex-1 rounded-full py-2 text-base font-medium transition ${
             mode === "signup"
               ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-950 dark:text-neutral-100"
               : "text-neutral-500 dark:text-neutral-400"
@@ -115,7 +117,7 @@ export default function AuthPrompt({
         <SignUpForm onSubmit={handleSignUp} isSubmitting={isSubmitting} />
       )}
 
-      <div className="flex items-center gap-3 text-xs text-neutral-400">
+      <div className="flex items-center gap-3 text-sm text-neutral-400">
         <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
         or
         <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />

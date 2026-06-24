@@ -4,12 +4,14 @@ import { useState } from "react";
 import SearchBar from "@/components/search/SearchBar";
 import SearchTypeTabs from "@/components/search/SearchTypeTabs";
 import SongCard from "@/components/results/SongCard";
+import SongTile from "@/components/results/SongTile";
 import AlbumCard from "@/components/results/AlbumCard";
 import ArtistCard from "@/components/results/ArtistCard";
 import ArtistsSection from "@/components/results/ArtistsSection";
 import AlbumsSection from "@/components/results/AlbumsSection";
 import SongsSection from "@/components/results/SongsSection";
 import ResultsList from "@/components/results/ResultsList";
+import TrendingSongsSection from "@/components/home/TrendingSongsSection";
 import SongDetailView from "@/components/song-detail/SongDetailView";
 import AlbumDetailView from "@/components/album-detail/AlbumDetailView";
 import ArtistDetailView from "@/components/artist-detail/ArtistDetailView";
@@ -22,6 +24,7 @@ import ProfileView from "@/components/profile/ProfileView";
 import ProfileEditForm from "@/components/profile/ProfileEditForm";
 import UserCard from "@/components/people/UserCard";
 import PlaylistCard from "@/components/playlists/PlaylistCard";
+import PlaylistHeader from "@/components/playlists/PlaylistHeader";
 import PlaylistSongRow from "@/components/playlists/PlaylistSongRow";
 import CreatePlaylistForm from "@/components/playlists/CreatePlaylistForm";
 import Artwork from "@/components/ui/Artwork";
@@ -35,6 +38,7 @@ import {
   mockAlbumDetail,
   mockArtist,
   mockArtistDetail,
+  mockHomeDiscovery,
   mockSearchResults,
   mockSong,
   mockSongNoArtwork,
@@ -91,6 +95,13 @@ export default function UiTestPage() {
         </div>
       </Block>
 
+      <Block title="SongTile">
+        <div className="grid grid-cols-3 gap-4">
+          <SongTile song={mockSong} onClick={() => {}} />
+          <SongTile song={mockSongNoArtwork} onClick={() => {}} />
+        </div>
+      </Block>
+
       <Block title="AlbumCard">
         <div className="grid grid-cols-3 gap-4">
           <AlbumCard album={mockAlbum} onClick={() => {}} onArtistClick={() => {}} />
@@ -113,6 +124,40 @@ export default function UiTestPage() {
 
       <Block title="SongsSection">
         <SongsSection songs={[mockSong, mockSongNoArtwork]} onSongClick={() => {}} />
+      </Block>
+
+      <Block title="TrendingSongsSection (also used as 'More by Artist')">
+        <div className="flex flex-col gap-6">
+          <TrendingSongsSection
+            songs={[mockSong, mockSongNoArtwork]}
+            onSongClick={() => {}}
+          />
+          <TrendingSongsSection
+            songs={[mockSong, mockSongNoArtwork]}
+            onSongClick={() => {}}
+            title={`More by ${mockSong.artistName}`}
+          />
+        </div>
+      </Block>
+
+      <Block title="Home Discovery (Trending Songs + Popular Artists + Popular Albums)">
+        <div className="flex flex-col gap-8">
+          <TrendingSongsSection
+            songs={mockHomeDiscovery.trendingSongs}
+            onSongClick={() => {}}
+          />
+          <ArtistsSection
+            artists={mockHomeDiscovery.popularArtists}
+            onArtistClick={() => {}}
+            title="Popular Artists"
+          />
+          <AlbumsSection
+            albums={mockHomeDiscovery.trendingAlbums}
+            onAlbumClick={() => {}}
+            onArtistClick={() => {}}
+            title="Popular Albums"
+          />
+        </div>
       </Block>
 
       <Block title="ResultsList (full, all sections)">
@@ -224,6 +269,12 @@ export default function UiTestPage() {
         <div className="flex flex-col gap-1">
           <UserCard user={mockUserProfile} />
           <UserCard user={mockOtherUserProfile} />
+        </div>
+      </Block>
+
+      <Block title="PlaylistHeader (view / editing / delete-confirm)">
+        <div className="flex flex-col gap-6">
+          <PlaylistHeader name={mockPlaylist.name} onRename={() => {}} onDelete={() => {}} />
         </div>
       </Block>
 

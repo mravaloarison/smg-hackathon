@@ -23,4 +23,17 @@ export interface Playlist {
   name: string;
   createdAt: number;
   songs: PlaylistSong[];
+  collaboratorIds?: string[];
+}
+
+export interface CollabInvite {
+  id: string;
+  playlistId: string;
+  playlistName: string;
+  fromUid: string;
+  fromUsername: string;
+  toUid: string;
+  toUsername: string;
+  createdAt: number;
+  status: 'pending' | 'accepted' | 'declined';
 }

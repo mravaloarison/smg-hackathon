@@ -10,6 +10,7 @@ interface ResultsListProps {
   onAlbumClick: (album: Album) => void;
   onArtistClick: (artist: Artist) => void;
   onArtistIdClick: (artistId: number) => void;
+  onAddToPlaylist?: (song: Song) => void;
 }
 
 export default function ResultsList({
@@ -18,6 +19,7 @@ export default function ResultsList({
   onAlbumClick,
   onArtistClick,
   onArtistIdClick,
+  onAddToPlaylist,
 }: ResultsListProps) {
   const hasResults =
     results.artists.length > 0 ||
@@ -41,7 +43,7 @@ export default function ResultsList({
         onAlbumClick={onAlbumClick}
         onArtistClick={onArtistIdClick}
       />
-      <SongsSection songs={results.songs} onSongClick={onSongClick} />
+      <SongsSection songs={results.songs} onSongClick={onSongClick} onAddToPlaylist={onAddToPlaylist} />
     </div>
   );
 }

@@ -1,4 +1,12 @@
-import { Album, AlbumDetail, Artist, ArtistDetail, SearchResults, Song } from "./types";
+import {
+  Album,
+  AlbumDetail,
+  Artist,
+  ArtistDetail,
+  HomeDiscovery,
+  SearchResults,
+  Song,
+} from "./types";
 
 const MOCK_ARTWORK_URL =
   "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/e2/61/f8/e261f8c1-73db-9a7a-c89e-1068f19970e0/16UMGIM67863.rgb.jpg/300x300bb.jpg";
@@ -63,4 +71,10 @@ export const mockAlbumDetail: AlbumDetail = {
 export const mockArtistDetail: ArtistDetail = {
   artist: mockArtist,
   albums: [mockAlbum],
+};
+
+export const mockHomeDiscovery: HomeDiscovery = {
+  trendingSongs: [mockSong, mockSongNoArtwork],
+  trendingAlbums: [mockAlbum],
+  popularArtists: [mockArtist],
 };

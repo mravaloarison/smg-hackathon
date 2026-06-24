@@ -62,6 +62,12 @@ export async function updateUserProfile(
   await updateDoc(doc(db, USERS_COLLECTION, uid), payload);
 }
 
+export async function getUserProfiles(uids: string[]): Promise<UserProfile[]> {
+  if (uids.length === 0) return [];
+  const results = await Promise.all(uids.map((uid) => getUserProfile(uid)));
+  return results.filter((p): p is UserProfile => p !== null);
+}
+
 export async function searchUsersByUsername(term: string): Promise<UserProfile[]> {
   const termLower = term.trim().toLowerCase();
   if (!termLower) return [];
