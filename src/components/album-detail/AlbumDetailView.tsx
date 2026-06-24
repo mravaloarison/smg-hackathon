@@ -23,7 +23,7 @@ export default function AlbumDetailView({
   return (
     <div>
       <BackButton onClick={onBack} label="Back" />
-      <div className="flex flex-col items-center gap-6 py-6 text-center sm:flex-row sm:items-start sm:text-left">
+      <div className="flex flex-col items-center gap-6 pb-6 text-center sm:flex-row sm:items-start sm:text-left">
         <Artwork src={album.artworkUrl} alt={album.title} size={220} />
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">

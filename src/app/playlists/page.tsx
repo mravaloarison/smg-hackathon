@@ -5,12 +5,14 @@ import AuthGate from "@/components/auth/AuthGate";
 import CreatePlaylistForm from "@/components/playlists/CreatePlaylistForm";
 import PlaylistCard from "@/components/playlists/PlaylistCard";
 import InviteCollaboratorModal from "@/components/playlists/InviteCollaboratorModal";
+import DeleteConfirmModal from "@/components/playlists/DeleteConfirmModal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createPlaylist,
   deletePlaylist,
+  leavePlaylist,
   renamePlaylist,
   subscribeToCollaboratorPlaylists,
   subscribeToUserPlaylists,
@@ -26,6 +28,10 @@ function PlaylistsPageContent() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [invitingPlaylist, setInvitingPlaylist] = useState<Playlist | null>(null);
+  const [deletingPlaylist, setDeletingPlaylist] = useState<Playlist | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [leavingPlaylist, setLeavingPlaylist] = useState<Playlist | null>(null);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -49,7 +55,9 @@ function PlaylistsPageContent() {
     return () => { unsubOwned(); unsubCollab(); };
   }, [user]);
 
-  const playlists = ownedPlaylists;
+  const allPlaylists = [...ownedPlaylists, ...collabPlaylists].sort(
+    (a, b) => b.createdAt - a.createdAt
+  );
 
   async function handleCreate(name: string) {
     if (!user || !profile) return;
@@ -74,21 +82,39 @@ function PlaylistsPageContent() {
     setRenameValue("");
   }
 
-  async function handleDelete(playlist: Playlist) {
-    const confirmed = window.confirm(
-      `Delete "${playlist.name}"? This can't be undone.`
-    );
-    if (!confirmed) return;
-    setOwnedPlaylists((prev) => prev.filter((p) => p.id !== playlist.id));
-    await deletePlaylist(playlist.id);
+  function handleDelete(playlist: Playlist) {
+    setDeletingPlaylist(playlist);
+  }
+
+  async function confirmDelete() {
+    if (!deletingPlaylist) return;
+    setIsDeleting(true);
+    try {
+      setOwnedPlaylists((prev) => prev.filter((p) => p.id !== deletingPlaylist.id));
+      await deletePlaylist(deletingPlaylist.id);
+      setDeletingPlaylist(null);
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   function handleInvite(playlist: Playlist) {
     setInvitingPlaylist(playlist);
   }
 
+  async function confirmLeave() {
+    if (!leavingPlaylist || !user || !profile) return;
+    setIsLeaving(true);
+    try {
+      await leavePlaylist(leavingPlaylist.id, leavingPlaylist.name, user.uid, profile.username, leavingPlaylist.ownerId);
+      setLeavingPlaylist(null);
+    } finally {
+      setIsLeaving(false);
+    }
+  }
+
   return (
-    <main className="flex w-full flex-col gap-6 px-6 py-10">
+    <main className="mx-auto flex w-full flex-col gap-4 px-4 py-6">
       <h1 className="text-center text-2xl font-bold text-neutral-900 dark:text-neutral-100">
         Playlists
       </h1>
@@ -97,23 +123,21 @@ function PlaylistsPageContent() {
       </div>
 
       {isLoading && <LoadingSpinner />}
-      {!isLoading && ownedPlaylists.length === 0 && collabPlaylists.length === 0 && (
+      {!isLoading && allPlaylists.length === 0 && (
         <EmptyState
           title="No playlists yet"
           description="Create your first playlist above."
         />
       )}
-      {!isLoading && ownedPlaylists.length > 0 && (
+      {!isLoading && allPlaylists.length > 0 && (
         <div className="flex flex-col gap-1">
-          {ownedPlaylists.map((playlist) => {
+          {allPlaylists.map((playlist) => {
+            const isOwner = playlist.ownerId === user?.uid;
             if (renamingId === playlist.id) {
               return (
                 <form
                   key={playlist.id}
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleRenameSave(playlist.id);
-                  }}
+                  onSubmit={(e) => { e.preventDefault(); handleRenameSave(playlist.id); }}
                   className="flex items-center gap-2 rounded-xl p-3"
                 >
                   <input
@@ -143,26 +167,14 @@ function PlaylistsPageContent() {
               <PlaylistCard
                 key={playlist.id}
                 playlist={playlist}
-                onRename={handleRename}
-                onDelete={handleDelete}
-                onInvite={handleInvite}
+                showOwner
+                onRename={isOwner ? handleRename : undefined}
+                onDelete={isOwner ? handleDelete : undefined}
+                onInvite={isOwner ? handleInvite : undefined}
+                onLeave={!isOwner ? () => setLeavingPlaylist(playlist) : undefined}
               />
             );
           })}
-        </div>
-      )}
-
-      {!isLoading && collabPlaylists.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <hr className="border-neutral-200 dark:border-neutral-800" />
-          <h2 className="px-1 text-base font-semibold text-neutral-900 dark:text-neutral-100">
-            Shared with me
-          </h2>
-          <div className="flex flex-col gap-1">
-            {collabPlaylists.map((playlist) => (
-              <PlaylistCard key={playlist.id} playlist={playlist} />
-            ))}
-          </div>
         </div>
       )}
 
@@ -170,6 +182,26 @@ function PlaylistsPageContent() {
         <InviteCollaboratorModal
           playlist={invitingPlaylist}
           onClose={() => setInvitingPlaylist(null)}
+        />
+      )}
+      {deletingPlaylist && (
+        <DeleteConfirmModal
+          playlistName={deletingPlaylist.name}
+          isLoading={isDeleting}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeletingPlaylist(null)}
+        />
+      )}
+      {leavingPlaylist && (
+        <DeleteConfirmModal
+          playlistName={leavingPlaylist.name}
+          isLoading={isLeaving}
+          onConfirm={confirmLeave}
+          onCancel={() => setLeavingPlaylist(null)}
+          title="Leave playlist"
+          body={`Are you sure you want to leave "${leavingPlaylist.name}"? You'll need a new invite to rejoin.`}
+          confirmLabel="Leave"
+          loadingLabel="Leaving…"
         />
       )}
     </main>

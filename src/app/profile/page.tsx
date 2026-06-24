@@ -53,7 +53,7 @@ function ProfilePageContent() {
 export default function ProfilePage() {
   return (
     <AuthGate>
-      <main className="flex w-full flex-col px-6 py-10">
+      <main className="mx-auto flex w-full max-w-2xl flex-col px-4 py-6">
         <ProfilePageContent />
       </main>
     </AuthGate>

@@ -6,6 +6,7 @@ import AuthGate from "@/components/auth/AuthGate";
 import PlaylistHeader from "@/components/playlists/PlaylistHeader";
 import PlaylistSongRow from "@/components/playlists/PlaylistSongRow";
 import InviteCollaboratorModal from "@/components/playlists/InviteCollaboratorModal";
+import DeleteConfirmModal from "@/components/playlists/DeleteConfirmModal";
 import BackButton from "@/components/ui/BackButton";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ErrorMessage from "@/components/ui/ErrorMessage";
@@ -28,6 +29,7 @@ function PlaylistDetailContent({ playlistId }: { playlistId: string }) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- starting a live subscription, not deriving state
@@ -84,18 +86,15 @@ function PlaylistDetailContent({ playlistId }: { playlistId: string }) {
       {!isLoading && playlist && (
         <>
           <PlaylistHeader
-            name={playlist.name}
-            createdAt={playlist.createdAt}
-            ownerUsername={playlist.ownerUsername}
+            playlist={playlist}
             collaborators={collaborators}
             onRename={handleRename}
-            onDelete={handleDelete}
+            onDelete={() => setShowDeleteModal(true)}
             onInvite={() => setIsInviting(true)}
             onRemoveCollaborator={handleRemoveCollaborator}
             isRenaming={isRenaming}
-            isDeleting={isDeleting}
           />
-          <hr className="border-neutral-200 dark:border-neutral-800" />
+          <hr className="mb-4 border-neutral-200 dark:border-neutral-800" />
           {playlist.songs.length === 0 ? (
             <EmptyState
               title="No songs yet"
@@ -103,8 +102,14 @@ function PlaylistDetailContent({ playlistId }: { playlistId: string }) {
             />
           ) : (
             <div className="flex flex-col gap-1">
-              {playlist.songs.map((song) => (
-                <PlaylistSongRow key={song.id} song={song} onRemove={handleRemove} />
+              {playlist.songs.map((song, i) => (
+                <PlaylistSongRow
+                  key={song.id}
+                  song={song}
+                  songIndex={i}
+                  playlistId={playlistId}
+                  onRemove={handleRemove}
+                />
               ))}
             </div>
           )}
@@ -112,6 +117,14 @@ function PlaylistDetailContent({ playlistId }: { playlistId: string }) {
             <InviteCollaboratorModal
               playlist={playlist}
               onClose={() => setIsInviting(false)}
+            />
+          )}
+          {showDeleteModal && (
+            <DeleteConfirmModal
+              playlistName={playlist.name}
+              isLoading={isDeleting}
+              onConfirm={handleDelete}
+              onCancel={() => setShowDeleteModal(false)}
             />
           )}
         </>
@@ -129,7 +142,7 @@ export default function PlaylistDetailPage({
 
   return (
     <AuthGate>
-      <main className="flex w-full flex-col px-6 py-10">
+      <main className="mx-auto flex w-full flex-col px-4 py-6">
         <PlaylistDetailContent playlistId={id} />
       </main>
     </AuthGate>

@@ -1,17 +1,25 @@
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Artwork from "@/components/ui/Artwork";
 import { PlaylistSong } from "@/lib/firestore/types";
 
 interface PlaylistSongRowProps {
   song: PlaylistSong;
+  songIndex: number;
+  playlistId: string;
   onRemove?: (song: PlaylistSong) => void;
 }
 
-export default function PlaylistSongRow({ song, onRemove }: PlaylistSongRowProps) {
+export default function PlaylistSongRow({ song, songIndex, playlistId, onRemove }: PlaylistSongRowProps) {
+  const router = useRouter();
+
+  function goToSong() {
+    router.push(`/search?songId=${song.id}&playlistId=${playlistId}&index=${songIndex}`);
+  }
+
   return (
     <div className="flex items-center gap-3 rounded-lg p-2 transition hover:bg-neutral-100 dark:hover:bg-neutral-800">
-      <Link href={`/?songId=${song.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-        <Artwork src={song.artworkUrl} alt={song.title} size={56} />
+      <button type="button" onClick={goToSong} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <Artwork src={song.artworkUrl} alt={song.title} size={48} />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
             {song.title}
@@ -21,7 +29,7 @@ export default function PlaylistSongRow({ song, onRemove }: PlaylistSongRowProps
             {song.albumName ? ` — ${song.albumName}` : ""}
           </p>
         </div>
-      </Link>
+      </button>
       {onRemove && (
         <button
           type="button"

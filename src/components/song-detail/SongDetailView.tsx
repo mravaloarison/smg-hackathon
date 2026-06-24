@@ -17,8 +17,8 @@ export default function SongDetailView({
 }: SongDetailViewProps) {
   return (
     <div>
-      <BackButton onClick={onBack} />
-      <div className="flex flex-col items-center gap-6 py-6 text-center sm:flex-row sm:items-start sm:text-left">
+      <BackButton onClick={onBack} label="Back" />
+      <div className="flex flex-col items-center gap-6 pb-4 text-center sm:flex-row sm:items-start sm:text-left">
         <Artwork src={song.artworkUrl} alt={song.title} size={220} />
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">

@@ -11,9 +11,10 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import { Playlist, PlaylistSong } from "./types";
+import { CollaboratorLeftNotification, Playlist, PlaylistSong } from "./types";
 
 const PLAYLISTS_COLLECTION = "playlists";
+const PLAYLIST_NOTIFICATIONS_COLLECTION = "playlist_notifications";
 
 export function subscribeToUserPlaylists(
   ownerId: string,
@@ -82,6 +83,44 @@ export async function renamePlaylist(playlistId: string, name: string): Promise<
 export async function removeCollaborator(playlistId: string, uid: string): Promise<void> {
   await updateDoc(doc(db, PLAYLISTS_COLLECTION, playlistId), {
     collaboratorIds: arrayRemove(uid),
+  });
+}
+
+export async function leavePlaylist(
+  playlistId: string,
+  playlistName: string,
+  collaboratorUid: string,
+  collaboratorUsername: string,
+  ownerUid: string
+): Promise<void> {
+  await updateDoc(doc(db, PLAYLISTS_COLLECTION, playlistId), {
+    collaboratorIds: arrayRemove(collaboratorUid),
+  });
+  const notifRef = doc(collection(db, PLAYLIST_NOTIFICATIONS_COLLECTION));
+  await setDoc(notifRef, {
+    id: notifRef.id,
+    type: "collaborator_left",
+    toUid: ownerUid,
+    fromUid: collaboratorUid,
+    fromUsername: collaboratorUsername,
+    playlistId,
+    playlistName,
+    createdAt: Date.now(),
+  } satisfies CollaboratorLeftNotification);
+}
+
+export function subscribeToCollaboratorLeftNotifications(
+  uid: string,
+  onChange: (notifs: CollaboratorLeftNotification[]) => void
+): () => void {
+  const q = query(
+    collection(db, PLAYLIST_NOTIFICATIONS_COLLECTION),
+    where("toUid", "==", uid)
+  );
+  return onSnapshot(q, (snap) => {
+    const notifs = snap.docs.map((d) => d.data() as CollaboratorLeftNotification);
+    notifs.sort((a, b) => b.createdAt - a.createdAt);
+    onChange(notifs);
   });
 }
 

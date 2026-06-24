@@ -274,7 +274,7 @@ export default function UiTestPage() {
 
       <Block title="PlaylistHeader (view / editing / delete-confirm)">
         <div className="flex flex-col gap-6">
-          <PlaylistHeader name={mockPlaylist.name} onRename={() => {}} onDelete={() => {}} />
+          <PlaylistHeader playlist={mockPlaylist} onRename={() => {}} onDelete={() => {}} />
         </div>
       </Block>
 
@@ -286,7 +286,7 @@ export default function UiTestPage() {
       </Block>
 
       <Block title="PlaylistSongRow">
-        <PlaylistSongRow song={mockPlaylistSong} onRemove={() => {}} />
+        <PlaylistSongRow song={mockPlaylistSong} songIndex={0} playlistId="test" onRemove={() => {}} />
       </Block>
 
       <Block title="CreatePlaylistForm">

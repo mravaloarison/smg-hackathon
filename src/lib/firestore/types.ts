@@ -37,3 +37,14 @@ export interface CollabInvite {
   createdAt: number;
   status: 'pending' | 'accepted' | 'declined';
 }
+
+export interface CollaboratorLeftNotification {
+  id: string;
+  type: 'collaborator_left';
+  toUid: string;
+  fromUid: string;
+  fromUsername: string;
+  playlistId: string;
+  playlistName: string;
+  createdAt: number;
+}

@@ -21,7 +21,7 @@ export default function ArtistDetailView({
   return (
     <div>
       <BackButton onClick={onBack} label="Back" />
-      <div className="flex flex-col items-center gap-4 py-6 text-center">
+      <div className="flex flex-col items-center gap-4 pb-6 text-center">
         <Artwork src={artist.artworkUrl} alt={artist.name} size={160} rounded="full" />
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">

@@ -5,11 +5,12 @@ import { FormEvent, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOutUser } from "@/lib/firebase/auth";
-import { deletePlaylist, renamePlaylist, subscribeToCollaboratorPlaylists, subscribeToUserPlaylists } from "@/lib/firestore/playlists";
+import { deletePlaylist, leavePlaylist, renamePlaylist, subscribeToCollaboratorPlaylists, subscribeToUserPlaylists } from "@/lib/firestore/playlists";
 import { subscribeToReceivedInvites } from "@/lib/firestore/invites";
 import { CollabInvite, Playlist } from "@/lib/firestore/types";
 import PlaylistArtwork from "@/components/playlists/PlaylistArtwork";
 import InviteCollaboratorModal from "@/components/playlists/InviteCollaboratorModal";
+import DeleteConfirmModal from "@/components/playlists/DeleteConfirmModal";
 
 interface SidebarContentProps {
   onNavigate?: () => void;
@@ -32,7 +33,7 @@ function NavLink({
     <Link
       href={href}
       onClick={onNavigate}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-base font-medium transition hover:bg-neutral-200/60 dark:hover:bg-neutral-800 ${
+      className={`flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-base font-medium transition hover:bg-neutral-200/60 dark:hover:bg-neutral-800 ${
         isActive
           ? "text-neutral-900 dark:text-neutral-100"
           : "text-neutral-600 dark:text-neutral-300"
@@ -54,6 +55,11 @@ export default function SidebarContent({ onNavigate }: SidebarContentProps) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [invitingPlaylist, setInvitingPlaylist] = useState<Playlist | null>(null);
+  const [deletingPlaylist, setDeletingPlaylist] = useState<Playlist | null>(null);
+  const [isDeletingPlaylist, setIsDeletingPlaylist] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [leavingPlaylist, setLeavingPlaylist] = useState<Playlist | null>(null);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -91,10 +97,30 @@ export default function SidebarContent({ onNavigate }: SidebarContentProps) {
     setRenamingId(null);
   }
 
-  async function handleDelete(playlist: Playlist) {
-    const ok = window.confirm(`Delete "${playlist.name}"? This can't be undone.`);
-    if (!ok) return;
-    await deletePlaylist(playlist.id);
+  function handleDelete(playlist: Playlist) {
+    setDeletingPlaylist(playlist);
+  }
+
+  async function confirmDelete() {
+    if (!deletingPlaylist) return;
+    setIsDeletingPlaylist(true);
+    try {
+      await deletePlaylist(deletingPlaylist.id);
+      setDeletingPlaylist(null);
+    } finally {
+      setIsDeletingPlaylist(false);
+    }
+  }
+
+  async function confirmLeave() {
+    if (!leavingPlaylist || !user || !profile) return;
+    setIsLeaving(true);
+    try {
+      await leavePlaylist(leavingPlaylist.id, leavingPlaylist.name, user.uid, profile.username, leavingPlaylist.ownerId);
+      setLeavingPlaylist(null);
+    } finally {
+      setIsLeaving(false);
+    }
   }
 
   return (
@@ -158,7 +184,7 @@ export default function SidebarContent({ onNavigate }: SidebarContentProps) {
           <Link
             href="/notifications"
             onClick={onNavigate}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-base font-medium transition hover:bg-neutral-200/60 dark:hover:bg-neutral-800 ${
+            className={`flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-base font-medium transition hover:bg-neutral-200/60 dark:hover:bg-neutral-800 ${
               pathname === "/notifications"
                 ? "text-neutral-900 dark:text-neutral-100"
                 : "text-neutral-600 dark:text-neutral-300"
@@ -185,7 +211,7 @@ export default function SidebarContent({ onNavigate }: SidebarContentProps) {
 
       {user && (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between px-3">
+          <div className="flex items-center justify-between pl-3 pr-1">
             <span className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
               Playlists
             </span>
@@ -207,132 +233,119 @@ export default function SidebarContent({ onNavigate }: SidebarContentProps) {
                 No playlists yet
               </p>
             )}
-            {ownedPlaylists.map((playlist) => {
-              const href = `/playlists/${playlist.id}`;
+            {[...ownedPlaylists, ...collabPlaylists]
+              .sort((a, b) => b.createdAt - a.createdAt)
+              .map((playlist) => {
+                const href = `/playlists/${playlist.id}`;
+                const isOwner = playlist.ownerId === user?.uid;
 
-              if (renamingId === playlist.id) {
+                if (renamingId === playlist.id) {
+                  return (
+                    <form
+                      key={playlist.id}
+                      onSubmit={(e) => saveRename(e, playlist.id)}
+                      className="flex items-center gap-1 px-2 py-1"
+                    >
+                      <input
+                        type="text"
+                        autoFocus
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        className="flex-1 rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                      />
+                      <button type="submit" className="text-xs font-semibold text-neutral-700 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100">
+                        Save
+                      </button>
+                      <button type="button" onClick={() => setRenamingId(null)} className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200">
+                        ✕
+                      </button>
+                    </form>
+                  );
+                }
+
                 return (
-                  <form
-                    key={playlist.id}
-                    onSubmit={(e) => saveRename(e, playlist.id)}
-                    className="flex items-center gap-1 px-2 py-1"
-                  >
-                    <input
-                      type="text"
-                      autoFocus
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      className="flex-1 rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                    />
-                    <button type="submit" className="text-xs font-semibold text-neutral-700 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100">
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRenamingId(null)}
-                      className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                  <div key={playlist.id} className="relative flex items-center gap-1 rounded-lg transition hover:bg-neutral-200/60 dark:hover:bg-neutral-800">
+                    <Link
+                      href={href}
+                      onClick={onNavigate}
+                      className={`flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5 text-sm ${
+                        pathname === href ? "text-neutral-900 dark:text-neutral-100" : "text-neutral-600 dark:text-neutral-300"
+                      }`}
                     >
-                      ✕
-                    </button>
-                  </form>
+                      <PlaylistArtwork playlist={playlist} size={32} />
+                      <div className="min-w-0">
+                        <span className="block truncate">{playlist.name}</span>
+                        <span className="block truncate text-xs text-neutral-400 dark:text-neutral-500">
+                          by {playlist.ownerUsername}
+                        </span>
+                      </div>
+                    </Link>
+                    <div className="relative flex-shrink-0 pr-1">
+                      <button
+                        type="button"
+                        onClick={() => setMenuOpenId((id) => id === playlist.id ? null : playlist.id)}
+                        aria-label="Options"
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-300 hover:text-neutral-700 dark:text-neutral-500 dark:hover:bg-neutral-700 dark:hover:text-neutral-200"
+                      >
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                          <path d="M3 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM8.5 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM14 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z" />
+                        </svg>
+                      </button>
+                      {menuOpenId === playlist.id && (
+                        <div className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+                          {isOwner && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => { setMenuOpenId(null); startRename(playlist); }}
+                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm font-medium text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                              >
+                                <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 flex-shrink-0 text-neutral-400" aria-hidden="true">
+                                  <path d="M5.433 13.917l1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+                                  <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+                                </svg>
+                                Rename
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setMenuOpenId(null); setInvitingPlaylist(playlist); }}
+                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm font-medium text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                              >
+                                <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 flex-shrink-0 text-neutral-400" aria-hidden="true">
+                                  <path d="M9 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM17.555 16.185a1 1 0 0 1-.887 1.312H3.332a1 1 0 0 1-.887-1.312l.347-1.107A4.003 4.003 0 0 1 6.613 12h6.774a4.003 4.003 0 0 1 3.821 2.878l.347 1.307ZM16 8a1 1 0 1 0-2 0v1h-1a1 1 0 1 0 0 2h1v1a1 1 0 1 0 2 0v-1h1a1 1 0 1 0 0-2h-1V8Z" />
+                                </svg>
+                                Invite a friend
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setMenuOpenId(null); handleDelete(playlist); }}
+                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                              >
+                                <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 flex-shrink-0" aria-hidden="true">
+                                  <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.808a2.75 2.75 0 0 0 2.74-2.53l.841-10.519.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clipRule="evenodd" />
+                                </svg>
+                                Delete
+                              </button>
+                            </>
+                          )}
+                          {!isOwner && (
+                            <button
+                              type="button"
+                              onClick={() => { setMenuOpenId(null); setLeavingPlaylist(playlist); }}
+                              className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                            >
+                              <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 flex-shrink-0" aria-hidden="true">
+                                <path fillRule="evenodd" d="M3 4.25A2.25 2.25 0 0 1 5.25 2h5.5A2.25 2.25 0 0 1 13 4.25v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 0-.75-.75h-5.5a.75.75 0 0 0-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 0 0 .75-.75v-2a.75.75 0 0 1 1.5 0v2A2.25 2.25 0 0 1 10.75 18h-5.5A2.25 2.25 0 0 1 3 15.75V4.25Zm9.47 4.22a.75.75 0 0 1 1.06 0l2.25 2.25a.75.75 0 0 1 0 1.06l-2.25 2.25a.75.75 0 1 1-1.06-1.06l.97-.97H7.75a.75.75 0 0 1 0-1.5h5.69l-.97-.97a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                              </svg>
+                              Leave playlist
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 );
-              }
-
-              return (
-                <div
-                  key={playlist.id}
-                  className="flex items-center gap-2 rounded-lg transition hover:bg-neutral-200/60 dark:hover:bg-neutral-800"
-                >
-                  <Link
-                    href={href}
-                    onClick={onNavigate}
-                    className={`flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-sm ${
-                      pathname === href
-                        ? "text-neutral-900 dark:text-neutral-100"
-                        : "text-neutral-600 dark:text-neutral-300"
-                    }`}
-                  >
-                    <PlaylistArtwork playlist={playlist} size={32} />
-                    <span className="truncate">{playlist.name}</span>
-                  </Link>
-                  <div className="flex flex-shrink-0 items-center gap-0.5 pr-1.5">
-                    <button
-                      type="button"
-                      onClick={() => startRename(playlist)}
-                      aria-label="Rename"
-                      title="Rename"
-                      className="flex h-6 w-6 items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-300 hover:text-neutral-700 dark:text-neutral-500 dark:hover:bg-neutral-700 dark:hover:text-neutral-200"
-                    >
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
-                        <path d="M5.433 13.917l1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
-                        <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setInvitingPlaylist(playlist)}
-                      aria-label="Invite collaborator"
-                      title="Invite collaborator"
-                      className="flex h-6 w-6 items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-300 hover:text-neutral-700 dark:text-neutral-500 dark:hover:bg-neutral-700 dark:hover:text-neutral-200"
-                    >
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
-                        <path d="M9 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM17.555 16.185a1 1 0 0 1-.887 1.312H3.332a1 1 0 0 1-.887-1.312l.347-1.107A4.003 4.003 0 0 1 6.613 12h6.774a4.003 4.003 0 0 1 3.821 2.878l.347 1.307ZM16 8a1 1 0 1 0-2 0v1h-1a1 1 0 1 0 0 2h1v1a1 1 0 1 0 2 0v-1h1a1 1 0 1 0 0-2h-1V8Z" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(playlist)}
-                      aria-label="Delete"
-                      title="Delete"
-                      className="flex h-6 w-6 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-500 dark:text-neutral-500 dark:hover:bg-red-950 dark:hover:text-red-400"
-                    >
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
-                        <path
-                          fillRule="evenodd"
-                          d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.808a2.75 2.75 0 0 0 2.74-2.53l.841-10.519.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </nav>
-        </div>
-      )}
-
-      {user && collabPlaylists.length > 0 && (
-        <div className="flex flex-col gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-700">
-          <div className="px-3">
-            <span className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-              Shared with me
-            </span>
-          </div>
-          <nav className="flex flex-col gap-0.5">
-            {collabPlaylists.map((playlist) => {
-              const href = `/playlists/${playlist.id}`;
-              return (
-                <Link
-                  key={playlist.id}
-                  href={href}
-                  onClick={onNavigate}
-                  className={`flex min-w-0 items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-neutral-200/60 dark:hover:bg-neutral-800 ${
-                    pathname === href
-                      ? "text-neutral-900 dark:text-neutral-100"
-                      : "text-neutral-600 dark:text-neutral-300"
-                  }`}
-                >
-                  <PlaylistArtwork playlist={playlist} size={32} />
-                  <div className="min-w-0">
-                    <span className="block truncate">{playlist.name}</span>
-                    <span className="block truncate text-xs text-neutral-400 dark:text-neutral-500">
-                      by {playlist.ownerUsername}
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
+              })}
           </nav>
         </div>
       )}
@@ -350,19 +363,19 @@ export default function SidebarContent({ onNavigate }: SidebarContentProps) {
         )}
         {!isLoading && !user && (
           <div className="flex flex-col gap-2 px-1">
-            <Link
+            {/* <Link
               href="/login"
               onClick={onNavigate}
               className="rounded-full border border-neutral-300 px-4 py-2 text-center text-base font-medium text-neutral-700 transition hover:bg-neutral-200/60 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
             >
               Sign in
-            </Link>
+            </Link> */}
             <Link
-              href="/login?mode=signup"
+              href="/login"
               onClick={onNavigate}
               className="rounded-full bg-neutral-900 px-4 py-2 text-center text-base font-medium text-white transition hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
             >
-              Sign up
+              Sign in
             </Link>
           </div>
         )}
@@ -372,6 +385,26 @@ export default function SidebarContent({ onNavigate }: SidebarContentProps) {
         <InviteCollaboratorModal
           playlist={invitingPlaylist}
           onClose={() => setInvitingPlaylist(null)}
+        />
+      )}
+      {deletingPlaylist && (
+        <DeleteConfirmModal
+          playlistName={deletingPlaylist.name}
+          isLoading={isDeletingPlaylist}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeletingPlaylist(null)}
+        />
+      )}
+      {leavingPlaylist && (
+        <DeleteConfirmModal
+          playlistName={leavingPlaylist.name}
+          isLoading={isLeaving}
+          onConfirm={confirmLeave}
+          onCancel={() => setLeavingPlaylist(null)}
+          title="Leave playlist"
+          body={`Are you sure you want to leave "${leavingPlaylist.name}"? You'll need a new invite to rejoin.`}
+          confirmLabel="Leave"
+          loadingLabel="Leaving…"
         />
       )}
     </div>

@@ -5,15 +5,12 @@ import AuthGate from "@/components/auth/AuthGate";
 import EmptyState from "@/components/ui/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { subscribeToReceivedInvites, respondToInvite } from "@/lib/firestore/invites";
-import { CollabInvite } from "@/lib/firestore/types";
+import { subscribeToCollaboratorLeftNotifications } from "@/lib/firestore/playlists";
+import { CollabInvite, CollaboratorLeftNotification } from "@/lib/firestore/types";
 
 type InviteStatus = "pending" | "accepted" | "declined";
 
-interface InviteCardProps {
-  invite: CollabInvite;
-}
-
-function InviteCard({ invite }: InviteCardProps) {
+function InviteCard({ invite }: { invite: CollabInvite }) {
   const [localStatus, setLocalStatus] = useState<InviteStatus>("pending");
   const [isResponding, setIsResponding] = useState(false);
 
@@ -79,32 +76,61 @@ function InviteCard({ invite }: InviteCardProps) {
   );
 }
 
+function CollaboratorLeftCard({ notif }: { notif: CollaboratorLeftNotification }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl dark:border-neutral-800 dark:bg-neutral-950">
+      <p className="text-base text-neutral-900 dark:text-neutral-100">
+        <span className="font-semibold">{notif.fromUsername}</span> left your playlist{" "}
+        <span className="font-semibold">&ldquo;{notif.playlistName}&rdquo;</span>
+      </p>
+      <p className="text-sm text-neutral-500 dark:text-neutral-400">
+        {new Date(notif.createdAt).toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}
+      </p>
+    </div>
+  );
+}
+
 function NotificationsPageContent() {
   const { user } = useAuth();
   const [invites, setInvites] = useState<CollabInvite[]>([]);
+  const [leftNotifs, setLeftNotifs] = useState<CollaboratorLeftNotification[]>([]);
 
   useEffect(() => {
     if (!user) return;
     return subscribeToReceivedInvites(user.uid, setInvites);
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    return subscribeToCollaboratorLeftNotifications(user.uid, setLeftNotifs);
+  }, [user]);
+
+  const hasAny = invites.length > 0 || leftNotifs.length > 0;
+
   return (
-    <main className="mx-auto flex max-w-2xl w-full flex-col gap-6 px-4 py-10">
+    <main className="mx-auto flex max-w-2xl w-full flex-col gap-6 px-4 py-6">
       <h1 className="text-center text-2xl font-bold text-neutral-900 dark:text-neutral-100">
         Notifications
       </h1>
 
-      {invites.length === 0 && (
+      {!hasAny && (
         <EmptyState
           title="No notifications"
           description="When someone invites you to collaborate on a playlist, it will appear here."
         />
       )}
 
-      {invites.length > 0 && (
+      {hasAny && (
         <div className="flex flex-col gap-3">
           {invites.map((invite) => (
             <InviteCard key={invite.id} invite={invite} />
+          ))}
+          {leftNotifs.map((notif) => (
+            <CollaboratorLeftCard key={notif.id} notif={notif} />
           ))}
         </div>
       )}

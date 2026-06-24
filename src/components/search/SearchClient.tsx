@@ -23,6 +23,8 @@ import {
   fetchSearchResults,
   fetchSongById,
 } from "@/lib/itunes/client";
+import { subscribeToPlaylist } from "@/lib/firestore/playlists";
+import { PlaylistSong } from "@/lib/firestore/types";
 import {
   Album,
   AlbumDetail,
@@ -37,6 +39,35 @@ import { LyricsResult } from "@/lib/lyrics/types";
 import { useAuth } from "@/contexts/AuthContext";
 
 const EMPTY_RESULTS: SearchResults = { songs: [], albums: [], artists: [] };
+
+function PlaylistNav({ onPrev, onNext }: { onPrev?: () => void; onNext?: () => void }) {
+  return (
+    <div className="flex items-center justify-between py-4">
+      <button
+        type="button"
+        onClick={onPrev}
+        disabled={!onPrev}
+        className="flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-30 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+          <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 0 1 0 1.06L9.06 10l3.73 3.71a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+        </svg>
+        Previous
+      </button>
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={!onNext}
+        className="flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-30 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+      >
+        Next
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+          <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 0 1 0-1.06L10.94 10 7.21 6.29a.75.75 0 0 1 1.06-1.06l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0Z" clipRule="evenodd" />
+        </svg>
+      </button>
+    </div>
+  );
+}
 
 interface UrlUpdate {
   type?: SearchType;
@@ -55,6 +86,8 @@ export default function SearchClient() {
   const songId = searchParams.get("songId");
   const albumId = searchParams.get("albumId");
   const artistId = searchParams.get("artistId");
+  const playlistId = searchParams.get("playlistId");
+  const playlistIndex = playlistId ? Number(searchParams.get("index") ?? "0") : null;
 
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
@@ -82,6 +115,12 @@ export default function SearchClient() {
 
   const [songToAdd, setSongToAdd] = useState<Song | null>(null);
   const [isSignInPromptOpen, setIsSignInPromptOpen] = useState(false);
+  const [playlistSongs, setPlaylistSongs] = useState<PlaylistSong[]>([]);
+
+  useEffect(() => {
+    if (!playlistId) { setPlaylistSongs([]); return; }
+    return subscribeToPlaylist(playlistId, (pl) => setPlaylistSongs(pl?.songs ?? []));
+  }, [playlistId]);
 
   const songFromResults = songId
     ? results.songs.find((s) => String(s.id) === songId) ?? null
@@ -337,7 +376,11 @@ export default function SearchClient() {
   }
 
   function goBack() {
-    router.back();
+    if (playlistId) {
+      router.push(`/playlists/${playlistId}`);
+    } else {
+      router.back();
+    }
   }
 
   const addToPlaylistModal = songToAdd && (
@@ -346,7 +389,7 @@ export default function SearchClient() {
 
   if (songId) {
     return (
-      <main className="flex w-full flex-col px-6 py-10">
+      <main className="flex w-full flex-col px-4 py-6">
         {!isAuthLoading && !user && <SignInPromptModal onClose={goBack} />}
         {!isAuthLoading && user && (
           <>
@@ -362,7 +405,47 @@ export default function SearchClient() {
                   onArtistClick={navigateToArtist}
                   onAddToPlaylist={() => handleAddToPlaylist(selectedSong)}
                 />
+                {playlistId && playlistIndex !== null && playlistSongs.length > 0 && (
+                  <PlaylistNav
+                    onPrev={
+                      playlistIndex > 0
+                        ? () => {
+                            const prev = playlistSongs[playlistIndex - 1];
+                            if (prev) router.push(`/search?songId=${prev.id}&playlistId=${playlistId}&index=${playlistIndex - 1}`);
+                          }
+                        : undefined
+                    }
+                    onNext={
+                      playlistIndex < playlistSongs.length - 1
+                        ? () => {
+                            const next = playlistSongs[playlistIndex + 1];
+                            if (next) router.push(`/search?songId=${next.id}&playlistId=${playlistId}&index=${playlistIndex + 1}`);
+                          }
+                        : undefined
+                    }
+                  />
+                )}
                 <LyricsSection isLoading={isLoadingLyrics} error={lyricsError} lyrics={lyrics} />
+                {playlistId && playlistIndex !== null && playlistSongs.length > 0 && (
+                  <PlaylistNav
+                    onPrev={
+                      playlistIndex > 0
+                        ? () => {
+                            const prev = playlistSongs[playlistIndex - 1];
+                            if (prev) router.push(`/search?songId=${prev.id}&playlistId=${playlistId}&index=${playlistIndex - 1}`);
+                          }
+                        : undefined
+                    }
+                    onNext={
+                      playlistIndex < playlistSongs.length - 1
+                        ? () => {
+                            const next = playlistSongs[playlistIndex + 1];
+                            if (next) router.push(`/search?songId=${next.id}&playlistId=${playlistId}&index=${playlistIndex + 1}`);
+                          }
+                        : undefined
+                    }
+                  />
+                )}
                 <TrendingSongsSection
                   songs={similarSongs}
                   onSongClick={handleSongClick}
@@ -380,7 +463,7 @@ export default function SearchClient() {
 
   if (albumId) {
     return (
-      <main className="flex w-full flex-col gap-8 px-6 py-10">
+      <main className="flex w-full flex-col gap-8 px-4 py-6">
         {isLoadingAlbum && <LoadingSpinner />}
         {!isLoadingAlbum && albumError && <ErrorMessage message="Could not load this album." />}
         {!isLoadingAlbum && !albumError && albumDetail && albumMatchesId && (
@@ -408,7 +491,7 @@ export default function SearchClient() {
 
   if (artistId) {
     return (
-      <main className="flex w-full flex-col gap-8 px-6 py-10">
+      <main className="flex w-full flex-col gap-8 px-4 py-6">
         {isLoadingArtist && <LoadingSpinner />}
         {!isLoadingArtist && artistError && (
           <ErrorMessage message="Could not load this artist." />
@@ -431,7 +514,7 @@ export default function SearchClient() {
   }
 
   return (
-    <main className="flex w-full flex-col gap-6 px-6 py-10">
+    <main className="flex w-full flex-col gap-6 px-4 py-6">
       <h1 className="text-center text-2xl font-bold text-neutral-900 dark:text-neutral-100">Search</h1>
 
       <div className="mx-auto w-full max-w-xl">

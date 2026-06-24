@@ -20,14 +20,14 @@ function LoginPageContent() {
 
   if (isLoading || user) {
     return (
-      <main className="mx-auto flex max-w-3xl w-full flex-col px-4 py-10">
+      <main className="mx-auto flex w-full max-w-md flex-col px-4 py-6">
         <LoadingSpinner />
       </main>
     );
   }
 
   return (
-    <main className="mx-auto flex max-w-3xl w-full flex-col px-4 py-10">
+    <main className="mx-auto flex w-full max-w-md flex-col px-4 py-6">
       <AuthPrompt defaultMode={defaultMode} onSuccess={() => router.replace("/")} />
     </main>
   );
