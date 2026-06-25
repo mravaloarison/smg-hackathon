@@ -11,7 +11,7 @@ import ArtistDetailView from "@/components/artist-detail/ArtistDetailView";
 import TrendingSongsSection from "@/components/home/TrendingSongsSection";
 import AlbumsSection from "@/components/results/AlbumsSection";
 import ArtistsSection from "@/components/results/ArtistsSection";
-import LyricsSection from "@/components/lyrics/LyricsSection";
+import ChordsSection from "@/components/lyrics/ChordsSection";
 import AddToPlaylistModal from "@/components/playlists/AddToPlaylistModal";
 import SignInPromptModal from "@/components/auth/SignInPromptModal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -24,6 +24,7 @@ import {
   fetchSongById,
 } from "@/lib/itunes/client";
 import { subscribeToPlaylist } from "@/lib/firestore/playlists";
+import { subscribeToUserProfile } from "@/lib/firestore/users";
 import { PlaylistSong } from "@/lib/firestore/types";
 import {
   Album,
@@ -34,9 +35,8 @@ import {
   SearchType,
   Song,
 } from "@/lib/itunes/types";
-import { fetchLyrics } from "@/lib/lyrics/client";
-import { LyricsResult } from "@/lib/lyrics/types";
 import { useAuth } from "@/contexts/AuthContext";
+import DeleteConfirmModal from "@/components/playlists/DeleteConfirmModal";
 
 const EMPTY_RESULTS: SearchResults = { songs: [], albums: [], artists: [] };
 
@@ -79,7 +79,7 @@ interface UrlUpdate {
 export default function SearchClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
 
   const query = searchParams.get("q") ?? "";
   const type = (searchParams.get("type") as SearchType) ?? "all";
@@ -105,9 +105,9 @@ export default function SearchClient() {
   const [isLoadingArtist, setIsLoadingArtist] = useState(false);
   const [artistError, setArtistError] = useState(false);
 
-  const [lyrics, setLyrics] = useState<LyricsResult | null>(null);
-  const [isLoadingLyrics, setIsLoadingLyrics] = useState(false);
-  const [lyricsError, setLyricsError] = useState(false);
+  const [songHasChords, setSongHasChords] = useState<boolean | null>(null);
+  const [pendingAddSong, setPendingAddSong] = useState<Song | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
 
   const [similarSongs, setSimilarSongs] = useState<Song[]>([]);
   const [similarAlbums, setSimilarAlbums] = useState<Album[]>([]);
@@ -121,6 +121,11 @@ export default function SearchClient() {
     if (!playlistId) { setPlaylistSongs([]); return; }
     return subscribeToPlaylist(playlistId, (pl) => setPlaylistSongs(pl?.songs ?? []));
   }, [playlistId]);
+
+  useEffect(() => {
+    if (!user) { setCurrentUsername(null); return; }
+    return subscribeToUserProfile(user.uid, (profile) => setCurrentUsername(profile?.username ?? null));
+  }, [user?.uid]);
 
   const songFromResults = songId
     ? results.songs.find((s) => String(s.id) === songId) ?? null
@@ -187,7 +192,7 @@ export default function SearchClient() {
   }, [query, type, songId, albumId, artistId]);
 
   useEffect(() => {
-    if (!songId || songFromResults || !user) return;
+    if (!songId || songFromResults) return;
 
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- starting an async fetch, not deriving state
@@ -208,7 +213,7 @@ export default function SearchClient() {
     return () => {
       cancelled = true;
     };
-  }, [songId, songFromResults, user]);
+  }, [songId, songFromResults]);
 
   useEffect(() => {
     if (!albumId || albumMatchesId) return;
@@ -259,39 +264,11 @@ export default function SearchClient() {
   }, [artistId, artistMatchesId]);
 
   useEffect(() => {
-    if (!selectedSong || !user) return;
-
-    let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- starting an async fetch, not deriving state
-    setIsLoadingLyrics(true);
-    setLyricsError(false);
-    setLyrics(null);
-
-    fetchLyrics({
-      artistName: selectedSong.artistName,
-      trackName: selectedSong.title,
-      albumName: selectedSong.albumName,
-      durationSeconds: selectedSong.durationMs
-        ? Math.round(selectedSong.durationMs / 1000)
-        : undefined,
-    })
-      .then((data) => {
-        if (!cancelled) setLyrics(data);
-      })
-      .catch(() => {
-        if (!cancelled) setLyricsError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingLyrics(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedSong, user]);
+    setSongHasChords(null);
+  }, [selectedSong?.id]);
 
   useEffect(() => {
-    if (!selectedSong || !user) return;
+    if (!selectedSong) return;
 
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- starting an async fetch, not deriving state
@@ -307,7 +284,7 @@ export default function SearchClient() {
     return () => {
       cancelled = true;
     };
-  }, [selectedSong, user]);
+  }, [selectedSong]);
 
   useEffect(() => {
     if (!albumDetail) return;
@@ -351,6 +328,10 @@ export default function SearchClient() {
       setIsSignInPromptOpen(true);
       return;
     }
+    if (songHasChords === false) {
+      setPendingAddSong(song);
+      return;
+    }
     setSongToAdd(song);
   }
 
@@ -387,76 +368,97 @@ export default function SearchClient() {
     <AddToPlaylistModal song={songToAdd} onClose={() => setSongToAdd(null)} />
   );
 
+  const noChordsConfirmModal = pendingAddSong && (
+    <DeleteConfirmModal
+      playlistName={pendingAddSong.title}
+      title="Save without chords?"
+      body={`"${pendingAddSong.title}" doesn't have chords yet. You can edit them later from the song page — collaborators will see your changes too.`}
+      confirmLabel="Save anyway"
+      loadingLabel="Saving…"
+      variant="neutral"
+      onConfirm={() => {
+        const song = pendingAddSong;
+        setPendingAddSong(null);
+        setSongToAdd(song);
+      }}
+      onCancel={() => setPendingAddSong(null)}
+    />
+  );
+
   if (songId) {
     return (
       <main className="flex w-full flex-col px-4 py-6">
-        {!isAuthLoading && !user && <SignInPromptModal onClose={goBack} />}
-        {!isAuthLoading && user && (
+        {isLoadingSong && <LoadingSpinner />}
+        {!isLoadingSong && songError && (
+          <ErrorMessage message="Could not load this song." />
+        )}
+        {!isLoadingSong && !songError && selectedSong && (
           <>
-            {isLoadingSong && <LoadingSpinner />}
-            {!isLoadingSong && songError && (
-              <ErrorMessage message="Could not load this song." />
+            <SongDetailView
+              song={selectedSong}
+              onBack={goBack}
+              onArtistClick={navigateToArtist}
+              onAddToPlaylist={() => handleAddToPlaylist(selectedSong)}
+            />
+            {playlistId && playlistIndex !== null && playlistSongs.length > 0 && (
+              <PlaylistNav
+                onPrev={
+                  playlistIndex > 0
+                    ? () => {
+                        const prev = playlistSongs[playlistIndex - 1];
+                        if (prev) router.push(`/search?songId=${prev.id}&playlistId=${playlistId}&index=${playlistIndex - 1}`);
+                      }
+                    : undefined
+                }
+                onNext={
+                  playlistIndex < playlistSongs.length - 1
+                    ? () => {
+                        const next = playlistSongs[playlistIndex + 1];
+                        if (next) router.push(`/search?songId=${next.id}&playlistId=${playlistId}&index=${playlistIndex + 1}`);
+                      }
+                    : undefined
+                }
+              />
             )}
-            {!isLoadingSong && !songError && selectedSong && (
-              <>
-                <SongDetailView
-                  song={selectedSong}
-                  onBack={goBack}
-                  onArtistClick={navigateToArtist}
-                  onAddToPlaylist={() => handleAddToPlaylist(selectedSong)}
-                />
-                {playlistId && playlistIndex !== null && playlistSongs.length > 0 && (
-                  <PlaylistNav
-                    onPrev={
-                      playlistIndex > 0
-                        ? () => {
-                            const prev = playlistSongs[playlistIndex - 1];
-                            if (prev) router.push(`/search?songId=${prev.id}&playlistId=${playlistId}&index=${playlistIndex - 1}`);
-                          }
-                        : undefined
-                    }
-                    onNext={
-                      playlistIndex < playlistSongs.length - 1
-                        ? () => {
-                            const next = playlistSongs[playlistIndex + 1];
-                            if (next) router.push(`/search?songId=${next.id}&playlistId=${playlistId}&index=${playlistIndex + 1}`);
-                          }
-                        : undefined
-                    }
-                  />
-                )}
-                <LyricsSection isLoading={isLoadingLyrics} error={lyricsError} lyrics={lyrics} />
-                {playlistId && playlistIndex !== null && playlistSongs.length > 0 && (
-                  <PlaylistNav
-                    onPrev={
-                      playlistIndex > 0
-                        ? () => {
-                            const prev = playlistSongs[playlistIndex - 1];
-                            if (prev) router.push(`/search?songId=${prev.id}&playlistId=${playlistId}&index=${playlistIndex - 1}`);
-                          }
-                        : undefined
-                    }
-                    onNext={
-                      playlistIndex < playlistSongs.length - 1
-                        ? () => {
-                            const next = playlistSongs[playlistIndex + 1];
-                            if (next) router.push(`/search?songId=${next.id}&playlistId=${playlistId}&index=${playlistIndex + 1}`);
-                          }
-                        : undefined
-                    }
-                  />
-                )}
-                <TrendingSongsSection
-                  songs={similarSongs}
-                  onSongClick={handleSongClick}
-                  onAddToPlaylist={handleAddToPlaylist}
-                  title={`More by ${selectedSong.artistName}`}
-                />
-              </>
+            <ChordsSection
+              songId={String(selectedSong.id)}
+              song={selectedSong}
+              userUid={user?.uid ?? null}
+              username={currentUsername}
+              onChordsStatusChange={setSongHasChords}
+            />
+            {playlistId && playlistIndex !== null && playlistSongs.length > 0 && (
+              <PlaylistNav
+                onPrev={
+                  playlistIndex > 0
+                    ? () => {
+                        const prev = playlistSongs[playlistIndex - 1];
+                        if (prev) router.push(`/search?songId=${prev.id}&playlistId=${playlistId}&index=${playlistIndex - 1}`);
+                      }
+                    : undefined
+                }
+                onNext={
+                  playlistIndex < playlistSongs.length - 1
+                    ? () => {
+                        const next = playlistSongs[playlistIndex + 1];
+                        if (next) router.push(`/search?songId=${next.id}&playlistId=${playlistId}&index=${playlistIndex + 1}`);
+                      }
+                    : undefined
+                }
+              />
             )}
+            <div className="mt-8">
+              <TrendingSongsSection
+                songs={similarSongs}
+                onSongClick={handleSongClick}
+                onAddToPlaylist={handleAddToPlaylist}
+                title={`More by ${selectedSong.artistName}`}
+              />
+            </div>
           </>
         )}
         {addToPlaylistModal}
+        {noChordsConfirmModal}
       </main>
     );
   }
