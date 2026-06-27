@@ -65,10 +65,15 @@ export interface SongLyricsDoc {
 export interface ChordVersion {
   id: string;
   songId: string;
+  songTitle?: string;
+  songArtist?: string;
+  songArtwork?: string;
   userId: string;
   username: string;
   // keyed by `${sectionIdx}_${lineIdx}`, only non-empty chord strings stored
   chords: Record<string, string>;
+  // full chord-over-words text submitted via the Phase 4 form
+  rawText?: string;
   likes: number;
   likedBy: string[];
   createdAt: number;

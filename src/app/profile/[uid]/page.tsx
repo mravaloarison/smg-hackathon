@@ -10,6 +10,7 @@ import BackButton from "@/components/ui/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { getUserProfile } from "@/lib/firestore/users";
 import { UserProfile } from "@/lib/firestore/types";
+import UserChordsSection from "@/components/profile/UserChordsSection";
 
 function OtherProfileContent({ uid }: { uid: string }) {
   const { user } = useAuth();
@@ -49,7 +50,10 @@ function OtherProfileContent({ uid }: { uid: string }) {
         <ErrorMessage message="This user could not be found." />
       )}
       {!isLoading && !error && profile && (
-        <ProfileView profile={profile} isOwnProfile={profile.uid === user?.uid} />
+        <>
+          <ProfileView profile={profile} isOwnProfile={profile.uid === user?.uid} />
+          <UserChordsSection uid={profile.uid} />
+        </>
       )}
     </>
   );

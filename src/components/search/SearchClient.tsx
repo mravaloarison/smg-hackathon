@@ -11,7 +11,6 @@ import ArtistDetailView from "@/components/artist-detail/ArtistDetailView";
 import TrendingSongsSection from "@/components/home/TrendingSongsSection";
 import AlbumsSection from "@/components/results/AlbumsSection";
 import ArtistsSection from "@/components/results/ArtistsSection";
-import ChordsSection from "@/components/lyrics/ChordsSection";
 import AddToPlaylistModal from "@/components/playlists/AddToPlaylistModal";
 import SignInPromptModal from "@/components/auth/SignInPromptModal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -24,7 +23,6 @@ import {
   fetchSongById,
 } from "@/lib/itunes/client";
 import { subscribeToPlaylist } from "@/lib/firestore/playlists";
-import { subscribeToUserProfile } from "@/lib/firestore/users";
 import { PlaylistSong } from "@/lib/firestore/types";
 import {
   Album,
@@ -36,7 +34,7 @@ import {
   Song,
 } from "@/lib/itunes/types";
 import { useAuth } from "@/contexts/AuthContext";
-import DeleteConfirmModal from "@/components/playlists/DeleteConfirmModal";
+import SongPage from "@/components/song-detail/SongPage";
 
 const EMPTY_RESULTS: SearchResults = { songs: [], albums: [], artists: [] };
 
@@ -88,6 +86,7 @@ export default function SearchClient() {
   const artistId = searchParams.get("artistId");
   const playlistId = searchParams.get("playlistId");
   const playlistIndex = playlistId ? Number(searchParams.get("index") ?? "0") : null;
+  const initialVersionId = searchParams.get("versionId");
 
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
@@ -105,10 +104,6 @@ export default function SearchClient() {
   const [isLoadingArtist, setIsLoadingArtist] = useState(false);
   const [artistError, setArtistError] = useState(false);
 
-  const [songHasChords, setSongHasChords] = useState<boolean | null>(null);
-  const [pendingAddSong, setPendingAddSong] = useState<Song | null>(null);
-  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
-
   const [similarSongs, setSimilarSongs] = useState<Song[]>([]);
   const [similarAlbums, setSimilarAlbums] = useState<Album[]>([]);
   const [similarArtists, setSimilarArtists] = useState<Artist[]>([]);
@@ -121,11 +116,6 @@ export default function SearchClient() {
     if (!playlistId) { setPlaylistSongs([]); return; }
     return subscribeToPlaylist(playlistId, (pl) => setPlaylistSongs(pl?.songs ?? []));
   }, [playlistId]);
-
-  useEffect(() => {
-    if (!user) { setCurrentUsername(null); return; }
-    return subscribeToUserProfile(user.uid, (profile) => setCurrentUsername(profile?.username ?? null));
-  }, [user?.uid]);
 
   const songFromResults = songId
     ? results.songs.find((s) => String(s.id) === songId) ?? null
@@ -264,10 +254,6 @@ export default function SearchClient() {
   }, [artistId, artistMatchesId]);
 
   useEffect(() => {
-    setSongHasChords(null);
-  }, [selectedSong?.id]);
-
-  useEffect(() => {
     if (!selectedSong) return;
 
     let cancelled = false;
@@ -328,10 +314,6 @@ export default function SearchClient() {
       setIsSignInPromptOpen(true);
       return;
     }
-    if (songHasChords === false) {
-      setPendingAddSong(song);
-      return;
-    }
     setSongToAdd(song);
   }
 
@@ -368,24 +350,22 @@ export default function SearchClient() {
     <AddToPlaylistModal song={songToAdd} onClose={() => setSongToAdd(null)} />
   );
 
-  const noChordsConfirmModal = pendingAddSong && (
-    <DeleteConfirmModal
-      playlistName={pendingAddSong.title}
-      title="Save without chords?"
-      body={`"${pendingAddSong.title}" doesn't have chords yet. You can edit them later from the song page — collaborators will see your changes too.`}
-      confirmLabel="Save anyway"
-      loadingLabel="Saving…"
-      variant="neutral"
-      onConfirm={() => {
-        const song = pendingAddSong;
-        setPendingAddSong(null);
-        setSongToAdd(song);
-      }}
-      onCancel={() => setPendingAddSong(null)}
-    />
-  );
-
   if (songId) {
+    const onPrev =
+      playlistId && playlistIndex !== null && playlistIndex > 0
+        ? () => {
+            const prev = playlistSongs[playlistIndex - 1];
+            if (prev) router.push(`/search?songId=${prev.id}&playlistId=${playlistId}&index=${playlistIndex - 1}`);
+          }
+        : undefined;
+    const onNext =
+      playlistId && playlistIndex !== null && playlistIndex < playlistSongs.length - 1
+        ? () => {
+            const next = playlistSongs[playlistIndex + 1];
+            if (next) router.push(`/search?songId=${next.id}&playlistId=${playlistId}&index=${playlistIndex + 1}`);
+          }
+        : undefined;
+
     return (
       <main className="flex w-full flex-col px-4 py-6">
         {isLoadingSong && <LoadingSpinner />}
@@ -393,72 +373,22 @@ export default function SearchClient() {
           <ErrorMessage message="Could not load this song." />
         )}
         {!isLoadingSong && !songError && selectedSong && (
-          <>
-            <SongDetailView
-              song={selectedSong}
-              onBack={goBack}
-              onArtistClick={navigateToArtist}
-              onAddToPlaylist={() => handleAddToPlaylist(selectedSong)}
-            />
-            {playlistId && playlistIndex !== null && playlistSongs.length > 0 && (
-              <PlaylistNav
-                onPrev={
-                  playlistIndex > 0
-                    ? () => {
-                        const prev = playlistSongs[playlistIndex - 1];
-                        if (prev) router.push(`/search?songId=${prev.id}&playlistId=${playlistId}&index=${playlistIndex - 1}`);
-                      }
-                    : undefined
-                }
-                onNext={
-                  playlistIndex < playlistSongs.length - 1
-                    ? () => {
-                        const next = playlistSongs[playlistIndex + 1];
-                        if (next) router.push(`/search?songId=${next.id}&playlistId=${playlistId}&index=${playlistIndex + 1}`);
-                      }
-                    : undefined
-                }
-              />
-            )}
-            <ChordsSection
-              songId={String(selectedSong.id)}
-              song={selectedSong}
-              userUid={user?.uid ?? null}
-              username={currentUsername}
-              onChordsStatusChange={setSongHasChords}
-            />
-            {playlistId && playlistIndex !== null && playlistSongs.length > 0 && (
-              <PlaylistNav
-                onPrev={
-                  playlistIndex > 0
-                    ? () => {
-                        const prev = playlistSongs[playlistIndex - 1];
-                        if (prev) router.push(`/search?songId=${prev.id}&playlistId=${playlistId}&index=${playlistIndex - 1}`);
-                      }
-                    : undefined
-                }
-                onNext={
-                  playlistIndex < playlistSongs.length - 1
-                    ? () => {
-                        const next = playlistSongs[playlistIndex + 1];
-                        if (next) router.push(`/search?songId=${next.id}&playlistId=${playlistId}&index=${playlistIndex + 1}`);
-                      }
-                    : undefined
-                }
-              />
-            )}
-            <div className="mt-8">
-              <TrendingSongsSection
-                songs={similarSongs}
-                onSongClick={handleSongClick}
-                onAddToPlaylist={handleAddToPlaylist}
-                title={`More by ${selectedSong.artistName}`}
-              />
-            </div>
-          </>
+          <SongPage
+            song={selectedSong}
+            onBack={goBack}
+            onArtistClick={navigateToArtist}
+            onAddToPlaylist={() => handleAddToPlaylist(selectedSong)}
+            onPrev={onPrev}
+            onNext={onNext}
+            initialVersionId={initialVersionId ?? undefined}
+            playlistMode={!!playlistId}
+            similarSongs={similarSongs}
+            onSimilarSongClick={handleSongClick}
+            onSimilarAddToPlaylist={handleAddToPlaylist}
+            userUid={user?.uid ?? null}
+          />
         )}
         {addToPlaylistModal}
-        {noChordsConfirmModal}
       </main>
     );
   }

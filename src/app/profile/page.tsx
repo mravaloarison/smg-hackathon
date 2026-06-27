@@ -8,6 +8,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateUserProfile } from "@/lib/firestore/users";
+import UserChordsSection from "@/components/profile/UserChordsSection";
 
 function ProfilePageContent() {
   const { user, profile } = useAuth();
@@ -44,7 +45,10 @@ function ProfilePageContent() {
           isSubmitting={isSubmitting}
         />
       ) : (
-        <ProfileView profile={profile} isOwnProfile onEdit={() => setIsEditing(true)} />
+        <>
+          <ProfileView profile={profile} isOwnProfile onEdit={() => setIsEditing(true)} />
+          <UserChordsSection uid={profile.uid} />
+        </>
       )}
     </>
   );
