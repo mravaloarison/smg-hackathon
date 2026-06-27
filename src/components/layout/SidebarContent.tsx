@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { FormEvent, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -381,21 +382,23 @@ export default function SidebarContent({ onNavigate }: SidebarContentProps) {
         )}
       </div>
 
-      {invitingPlaylist && (
+      {invitingPlaylist && createPortal(
         <InviteCollaboratorModal
           playlist={invitingPlaylist}
           onClose={() => setInvitingPlaylist(null)}
-        />
+        />,
+        document.body
       )}
-      {deletingPlaylist && (
+      {deletingPlaylist && createPortal(
         <DeleteConfirmModal
           playlistName={deletingPlaylist.name}
           isLoading={isDeletingPlaylist}
           onConfirm={confirmDelete}
           onCancel={() => setDeletingPlaylist(null)}
-        />
+        />,
+        document.body
       )}
-      {leavingPlaylist && (
+      {leavingPlaylist && createPortal(
         <DeleteConfirmModal
           playlistName={leavingPlaylist.name}
           isLoading={isLeaving}
@@ -405,7 +408,8 @@ export default function SidebarContent({ onNavigate }: SidebarContentProps) {
           body={`Are you sure you want to leave "${leavingPlaylist.name}"? You'll need a new invite to rejoin.`}
           confirmLabel="Leave"
           loadingLabel="Leaving…"
-        />
+        />,
+        document.body
       )}
     </div>
   );

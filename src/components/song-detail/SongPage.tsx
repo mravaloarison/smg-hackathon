@@ -322,9 +322,14 @@ export default function SongPage({
 
   // ── Overview ──────────────────────────────────────────────────────────────
 
-  // Playlist mode: show the user's own chord version inline, no version list
+  // Playlist mode: show best available version inline (own first, then others')
   if (playlistMode) {
-    const mychordsText = myVersion ? buildChordsText(lyricsDoc, myVersion) : "";
+    // Prefer the current user's version; fall back to the most-liked one from anyone else.
+    const displayVersion = myVersion ?? (versions[0] ?? null);
+    const displayChordsText = displayVersion ? buildChordsText(lyricsDoc, displayVersion) : "";
+    const isDisplayMine = displayVersion?.userId === userUid;
+    const displayLiked = userUid && displayVersion ? displayVersion.likedBy.includes(userUid) : false;
+
     return (
       <div className="flex flex-col">
         <SongDetailView
@@ -340,47 +345,79 @@ export default function SongPage({
             <div className="flex items-center gap-2 py-4">
               <LoadingSpinner />
             </div>
-          ) : myVersion && mychordsText ? (
+          ) : displayVersion && displayChordsText ? (
             <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                  Chords &amp; Lyrics
-                </h2>
-                {!isConfirmingDelete ? (
-                  <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-0.5">
+                  <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                    Chords &amp; Lyrics
+                  </h2>
+                  {!isDisplayMine && (
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500">
+                      by {displayVersion.username}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  {/* Own version controls */}
+                  {isDisplayMine && !isConfirmingDelete && (
+                    <>
+                      <button
+                        onClick={startEdit}
+                        className="rounded-full border border-neutral-200 px-3 py-1 text-xs text-neutral-500 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setIsConfirmingDelete(true)}
+                        className="rounded-full border border-neutral-200 px-3 py-1 text-xs text-red-500 hover:border-red-200 hover:bg-red-50 dark:border-neutral-700 dark:hover:border-red-800 dark:hover:bg-red-950"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                  {isDisplayMine && isConfirmingDelete && (
+                    <>
+                      <span className="text-xs text-neutral-500 dark:text-neutral-400">Delete?</span>
+                      <button
+                        onClick={() => handleDelete(displayVersion.id)}
+                        disabled={isDeleting}
+                        className="rounded-full bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {isDeleting ? "…" : "Yes"}
+                      </button>
+                      <button
+                        onClick={() => setIsConfirmingDelete(false)}
+                        className="text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                  {/* Someone else's version: like + add own */}
+                  {!isDisplayMine && userUid && (
+                    <button
+                      onClick={() => handleLike(displayVersion)}
+                      className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition ${
+                        displayLiked
+                          ? "border-rose-200 bg-rose-50 text-rose-500 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-400"
+                          : "border-neutral-200 text-neutral-500 hover:border-rose-200 hover:text-rose-400 dark:border-neutral-700"
+                      }`}
+                    >
+                      {displayLiked ? "♥" : "♡"} Like
+                    </button>
+                  )}
+                  {!isDisplayMine && userUid && !myVersion && (
                     <button
                       onClick={startEdit}
-                      className="rounded-full border border-neutral-200 px-3 py-1 text-xs text-neutral-500 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                      className="rounded-full border border-neutral-200 px-3 py-1 text-xs text-indigo-500 hover:bg-indigo-50 dark:border-neutral-700 dark:hover:bg-indigo-950/30"
                     >
-                      Edit
+                      + Add yours
                     </button>
-                    <button
-                      onClick={() => setIsConfirmingDelete(true)}
-                      className="rounded-full border border-neutral-200 px-3 py-1 text-xs text-red-500 hover:border-red-200 hover:bg-red-50 dark:border-neutral-700 dark:hover:border-red-800 dark:hover:bg-red-950"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-neutral-500 dark:text-neutral-400">Delete?</span>
-                    <button
-                      onClick={() => handleDelete(myVersion.id)}
-                      disabled={isDeleting}
-                      className="rounded-full bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                    >
-                      {isDeleting ? "…" : "Yes"}
-                    </button>
-                    <button
-                      onClick={() => setIsConfirmingDelete(false)}
-                      className="text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-              <ChordViewer chordsText={mychordsText} />
+              <ChordViewer chordsText={displayChordsText} />
             </div>
           ) : userUid ? (
             <button
