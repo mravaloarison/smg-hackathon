@@ -128,6 +128,12 @@ export default function SearchClient() {
   function navigate(next: UrlUpdate) {
     const params = new URLSearchParams(searchParams.toString());
 
+    // Playlist context (playlistId, index) only belongs to direct Prev/Next
+    // navigation. Any other navigation exits the playlist context.
+    params.delete("playlistId");
+    params.delete("index");
+    params.delete("versionId");
+
     if (next.type !== undefined) {
       if (next.type && next.type !== "all") params.set("type", next.type);
       else params.delete("type");
@@ -151,6 +157,9 @@ export default function SearchClient() {
 
   function changeType(nextType: SearchType) {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("playlistId");
+    params.delete("index");
+    params.delete("versionId");
     if (nextType !== "all") params.set("type", nextType);
     else params.delete("type");
     const queryString = params.toString();

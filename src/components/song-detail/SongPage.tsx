@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { subscribeChordVersions, saveChordVersion, toggleLike, deleteChordVersion } from "@/lib/firestore/chordVersions";
 import { subscribeSongLyrics } from "@/lib/firestore/songLyrics";
 import { ChordVersion, SongLyricsDoc } from "@/lib/firestore/types";
@@ -89,18 +89,18 @@ export default function SongPage({
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const readyRef = useRef(0);
-
   useEffect(() => {
     setIsLoadingVersions(true);
     setActiveVersionId(initialVersionId ?? null);
     setIsEditing(false);
     setVersions([]);
     setLyricsDoc(null);
-    readyRef.current = 0;
-    const finish = () => { readyRef.current += 1; if (readyRef.current >= 2) setIsLoadingVersions(false); };
-    const u1 = subscribeSongLyrics(songId, (doc) => { setLyricsDoc(doc); finish(); });
-    const u2 = subscribeChordVersions(songId, (v) => { setVersions(v); finish(); });
+    // lyricsDoc is only a fallback for legacy versions; don't gate loading on it.
+    const u1 = subscribeSongLyrics(songId, (doc) => setLyricsDoc(doc));
+    const u2 = subscribeChordVersions(songId, (v) => {
+      setVersions(v);
+      setIsLoadingVersions(false);
+    });
     return () => { u1(); u2(); };
   }, [songId, initialVersionId]);
 

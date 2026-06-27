@@ -38,6 +38,9 @@ export default function PageSearchBar() {
     params.delete("songId");
     params.delete("albumId");
     params.delete("artistId");
+    params.delete("playlistId");
+    params.delete("index");
+    params.delete("versionId");
     const queryString = params.toString();
     router.replace(queryString ? `/search?${queryString}` : "/search");
     // eslint-disable-next-line react-hooks/exhaustive-deps
